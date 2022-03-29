@@ -76,6 +76,12 @@ inputs:
     description: 'Time in seconds, after which token expires'
     required: false
     default: 3600
+  username:
+    description: "userpass authentication username"
+    required: false
+  password:
+    description: "userpass authentication password"
+    required: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

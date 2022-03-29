@@ -16,11 +16,11 @@ async function retrieveToken(method, client) {
         case 'approle': {
             const vaultRoleId = core.getInput('roleId', { required: true });
             const vaultSecretId = core.getInput('secretId', { required: true });
-            return await getClientToken(client, method, path, { role_id: vaultRoleId, secret_id: vaultSecretId });
+            return await getClientToken(client, method, path, { role_id: vaultRoleId, secret_id: vaultSecretId }, null);
         }
         case 'github': {
             const githubToken = core.getInput('githubToken', { required: true });
-            return await getClientToken(client, method, path, { token: githubToken });
+            return await getClientToken(client, method, path, { token: githubToken }, null);
         }
         case 'jwt': {
             /** @type {string} */
@@ -38,7 +38,7 @@ async function retrieveToken(method, client) {
                 jwt = generateJwt(privateKey, keyPassword, Number(tokenTtl));
             }
 
-            return await getClientToken(client, method, path, { jwt: jwt, role: role });
+            return await getClientToken(client, method, path, { jwt: jwt, role: role }, null);
         }
         case 'kubernetes': {
             const role = core.getInput('role', { required: true })
@@ -47,11 +47,15 @@ async function retrieveToken(method, client) {
             if (!(role && data) && data != "") {
                 throw new Error("Role Name must be set and a kubernetes token must set")
             }
-            return await getClientToken(client, method, path, { jwt: data, role: role })
+            return await getClientToken(client, method, path, { jwt: data, role: role }, null)
         }
 
         default: {
-            if (!method || method === 'token') {
+            if (method === 'userpass') {
+                const username = core.getInput('username', { required: true })
+                const password = core.getInput('password', { required: true })
+                return await getClientToken(client, method, path, { password }, username)
+            } else if (!method || method === 'token') {
                 return core.getInput('token', { required: true });
             } else {
                 /** @type {string} */
@@ -59,7 +63,7 @@ async function retrieveToken(method, client) {
                 if (!payload) {
                     throw Error('When using a custom authentication method, you must provide the payload');
                 }
-                return await getClientToken(client, method, path, JSON.parse(payload.trim()));
+                return await getClientToken(client, method, path, JSON.parse(payload.trim()), null);
             }
         }
     }
@@ -97,8 +101,9 @@ function generateJwt(privateKey, keyPassword, ttl) {
  * @param {string} method
  * @param {string} path
  * @param {any} payload
+ * @param {string} endpointSuffix
  */
-async function getClientToken(client, method, path, payload) {
+async function getClientToken(client, method, path, payload, endpointSuffix) {
     /** @type {'json'} */
     const responseType = 'json';
     var options = {
@@ -106,10 +111,11 @@ async function getClientToken(client, method, path, payload) {
         responseType,
     };
 
-    core.debug(`Retrieving Vault Token from v1/auth/${path}/login endpoint`);
+    const endpoint = `v1/auth/${path}/login` + (endpointSuffix ? `/${endpointSuffix}` : '');
+    core.debug(`Retrieving Vault Token from ${endpoint} endpoint`);
 
     /** @type {import('got').Response<VaultLoginResponse>} */
-    const response = await client.post(`v1/auth/${path}/login`, options);
+    const response = await client.post(endpoint, options);
     if (response && response.body && response.body.auth && response.body.auth.client_token) {
         core.debug('✔ Vault Token successfully retrieved');
 
