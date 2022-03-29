@@ -1,5 +1,5 @@
-name: 'Vault Secrets'
-description: 'A Github Action that allows you to consume HashiCorp Vault™ secrets as secure environment variables'
+name: 'Vault Secrets with userpass'
+description: 'hashicorp/vault-action, but includes userpass method support'
 inputs:
   url:
     description: 'The URL for the vault endpoint'
